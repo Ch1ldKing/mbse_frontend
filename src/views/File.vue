@@ -23,10 +23,8 @@
             <div class="typeDos">
               <div>
                 <el-input
-
                   v-model="typeQueryInfo.fileTypeInfo.content"
                   placeholder="全局搜索"
-
                   prefix-icon="el-icon-search"
                   size="medium"
                   clearable
@@ -50,43 +48,6 @@
                   >重置</el-button
                 >
               </div>
-              <div>
-                <el-button
-                  type="success"
-                  icon="el-icon-plus"
-                  size="medium"
-                  @click="showTypeAddFrom = !showTypeAddFrom"
-                  >添加</el-button
-                >
-              </div>
-            </div>
-            <!-- 添加分类信息的表单 -->
-            <div>
-              <transition name="el-zoom-in-top">
-                <div class="addTypeForms" v-show="showTypeAddFrom">
-                  <div>添加分类信息：</div>
-                  <div>
-                    <el-input
-                      v-model="addTypeInfo.name"
-                      placeholder="请输入分类名称"
-                      prefix-icon="el-icon-search"
-                      size="medium"
-                      clearable
-                    ></el-input>
-                  </div>
-                  <div>
-                    <el-button
-                      type="primary"
-                      size="medium"
-                      icon="el-icon-check"
-                      :loading="addTypeLoading"
-                      @click="addType"
-                    >
-                      提交
-                    </el-button>
-                  </div>
-                </div>
-              </transition>
             </div>
             <!-- 数据展示部分 -->
             <div class="typeTables">
@@ -94,7 +55,7 @@
               <el-table
                 :data="typeList"
                 v-loading="typeLoading"
-                element-loading-text="拼命加载中..."
+                element-loading-text="加载中..."
               >
                 <el-table-column
                   label="主键"
@@ -224,7 +185,7 @@
     <!-- 文件分类信息修改对话框 -->
     <div>
       <el-dialog
-        title="修改分类信息"
+        title="修改文件信息"
         center
         :visible.sync="showTypeUpdateFrom"
         :close-on-press-escape="false"
@@ -233,10 +194,10 @@
       >
         <!-- 操作表单 -->
         <el-form>
-          <el-form-item label="分类名称：">
+          <el-form-item label="文件名称：">
             <el-input
               v-model="updateTypeInfo.name"
-              placeholder="请输入分类名称"
+              placeholder="请输入修改后文件名称"
               clearable
             ></el-input>
           </el-form-item>
@@ -276,8 +237,9 @@ import axios from "axios";
 import qs from "qs";
 // js-base64
 import { Base64 } from "js-base64";
-import { getTypeFiles, sendToServer ,getSpecialFiles} from "../api";
+import { getTypeFiles, sendToServer, getSpecialFiles } from "../api";
 import { MessageBox } from "element-ui";
+import { Loading } from "element-ui";
 
 export default {
   name: "FilesIndex",
@@ -290,12 +252,7 @@ export default {
       // ======== 分类信息部分 ========
       // 分类信息查询条件
       typeQueryInfo: {
-
-
-        
-          content: "",
-        
-
+        content: "",
       },
       // 分类信息查询加载
       typeLoading: false,
@@ -612,6 +569,7 @@ export default {
     // 上传文件
     uploadFile() {
       const files = this.uploadFileInfo;
+      let loadingInstance = null;
       if (files.length != 3) {
         this.showMessage(false, "请选择两个文件");
         return;
@@ -628,29 +586,40 @@ export default {
               reader.onload = () => resolve(reader.result);
             })
         )
-      )
-        .then((contents) => {
-          console.log("文件内容已读取，发送到服务器：", contents);
-          sendToServer(contents[1], contents[2]).then(({ data }) => {
+      ).then((contents) => {
+        console.log("文件内容已读取，发送到服务器：", contents);
+        loadingInstance = Loading.service({
+          fullscreen: true,
+          text: "加载中...",
+          background: "rgba(0, 0, 0, 0.7)",
+        });
+
+        sendToServer(contents[1], contents[2])
+          .then(({ data }) => {
             if (data.data == true) {
               MessageBox.alert("两个文件存在需求关联", "成功", {
                 confirmButtonText: "确定",
                 type: "success",
                 center: true,
               });
-            }
-            else {
+            } else {
               MessageBox.alert("两个文件不存在需求关联", "失败", {
                 confirmButtonText: "确定",
                 type: "error",
                 center: true,
               });
             }
+          })
+          .catch((error) => {
+            console.error("读取文件发生错误:", error);
+          })
+          .finally(() => {
+            if (loadingInstance) {
+              // 请求完成后关闭加载动画
+              loadingInstance.close();
+            }
           });
-        })
-        .catch((error) => {
-          console.error("读取文件发生错误:", error);
-        });
+      });
     },
     // 文件上传选择文件组件触发的函数
     chooseUploadFile(file) {
@@ -818,14 +787,13 @@ export default {
       let app = this;
       this.typeLoading = true;
 
-      if(this.typeQueryInfo.content == ""){
+      if (this.typeQueryInfo.content == "") {
         getTypeFiles(this.typeQueryInfo.content).then(({ data }) => {
-
-        console.log(data);
-        app.typeLoading = false;
+          console.log(data);
+          app.typeLoading = false;
           app.typeList = data;
         });
-      }else{
+      } else {
         getSpecialFiles(this.typeQueryInfo.content).then(({ data }) => {
           console.log(data);
           app.typeLoading = false;
@@ -1215,5 +1183,4 @@ export default {
   background-color: #3399ff; /* 主按钮背景颜色 */
   border-color: #3399ff; /* 主按钮边框颜色 */
 }
-
 </style>
